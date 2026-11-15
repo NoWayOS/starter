@@ -158,6 +158,7 @@ Renames the crates, the programs, the system and what it prints, in every file. 
 | `make qemu VNC=1` | boot it on seL4 in QEMU, the screen over VNC |
 | `make qemu-test` | boot it headless and check what it prints and shows |
 | `make check` | lint, test, screens and qemu-test: run it before you share a change |
+| `make ci` | every check NoWayOS holds its own repositories to, the security checks among them |
 | `make shell` | a shell in the dev container |
 
 Run them from this folder or from `app/`.
@@ -170,7 +171,9 @@ my-app/
 ├── nowayos.rev                the NoWayOS commit you build on
 ├── screen-compiler.rev        the Screen Compiler commit that converts your screens
 ├── nowayos/, screen-compiler/ fetched by make setup; not part of your repository
+├── secrets-allow.toml         reviewed false positives of the secrets scan (none)
 └── app/
+    ├── deny.toml              the licences and sources your dependencies may have
     ├── starter-app/           your application
     │   ├── tsx/               its screens, in React
     │   ├── src/lib.rs         its logic
@@ -193,6 +196,24 @@ Change the commit in `nowayos.rev` (or `screen-compiler.rev`), run `make setup`,
 The workspace's lints are NoWayOS's own: no `unsafe`, no `unwrap` or `panic!`, no unchecked indexing or arithmetic, in anything that goes on a device. They are why `make lint` is strict. Code on the device has no heap and never panics on what it is given, and the lints keep yours that way from the first line.
 
 Treat everything typed into a screen as sensitive: never log it, and wipe it when it is done with. Showing the next screen clears the tree and everything typed into it.
+
+## The security checks
+
+Your application starts with the security checks NoWayOS runs on itself. `make ci` runs them all, with the tests, in a minute or so once the first build is done; each also runs on its own.
+
+| Check | What it holds |
+| --- | --- |
+| `make pins` | NoWayOS and Screen Compiler are exactly the commits `nowayos.rev` and `screen-compiler.rev` name, unchanged |
+| `make secrets` | no key or credential in the tree, or in any commit |
+| `make deny`, `make pds-deny` | every dependency, and everything it brings with it: a permissive licence, from crates.io, with no known advisory. No browser engine, window system or C GUI runtime can arrive as a dependency of something else |
+| `make unsafe-audit` | no `unsafe` code anywhere in the application |
+| `make nostd`, `make std-crates-check` | what the device runs builds with no standard library, and holds only the standard-library crates NoWayOS has reviewed |
+| `make qemu-test-all` | every grant is in the grants file; the system boots, behaves as its test says, and prints nothing typed |
+| `make sbom` | a CycloneDX bill of materials for what the device is built from, in `app/build/sbom/` |
+
+The rules are in files you own: `app/deny.toml` and `app/pds/deny.toml` for dependencies, `secrets-allow.toml` for a reviewed false positive, `app/systems/starter.grants` for what each part may reach. Loosen one and the change shows in a diff.
+
+A change to the starter itself passes the gates in [Defence Agent](https://github.com/NoWayOS/defence-agent), as every NoWayOS repository's does.
 
 ## Where next
 

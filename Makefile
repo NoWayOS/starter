@@ -9,8 +9,9 @@
 # Makefile. Written for GNU Make 3.81 (the version macOS ships) and later.
 
 .DEFAULT_GOAL := help
-TARGETS := dev preview screens new-screen rename fmt lint test check \
-	qemu qemu-test image pds shell clean
+TARGETS := dev preview screens new-screen rename fmt lint test doc check ci \
+	secrets deny pds-deny pds-lint unsafe-audit nostd std-crates-check pins sbom \
+	qemu qemu-test qemu-test-all image pds shell system-clean
 .PHONY: help setup $(TARGETS)
 
 help:
