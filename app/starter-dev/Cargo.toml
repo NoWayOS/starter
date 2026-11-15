@@ -1,0 +1,19 @@
+[package]
+name = "starter-dev"
+description = "make dev's program, host only: the application running in a browser window on this machine (NoWayOS's dev window)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+starter-app.workspace = true
+nowayos-dev-window.workspace = true
+nowayos-display.workspace = true
+nowayos-input.workspace = true
+nowayos-render-eg.workspace = true
+nowayos-ui.workspace = true
+
+[lints]
+workspace = true

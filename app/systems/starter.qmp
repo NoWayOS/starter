@@ -1,0 +1,14 @@
+# What `make qemu-test` types into QEMU (NoWayOS's tools/qemu-test), a step
+# at a time, waiting for the application to say where it is: Tab to the name,
+# a name, Tab to Continue, Enter; then Tab to Start again, Enter. The name is
+# a marker starter.expect forbids in the log: nothing typed is ever printed.
+
+wait STARTER: ui: showing welcome
+key tab
+key z q v j
+key tab
+key ret
+wait STARTER: ui: showing hello
+key tab
+key ret
+wait STARTER: ui: showing welcome

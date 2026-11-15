@@ -1,0 +1,21 @@
+[package]
+name = "starter-display"
+description = "In QEMU: NoWayOS's display PD, showing each frame the UI presents on QEMU's screen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "starter-display"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+nowayos-display-ramfb.workspace = true
+sel4-microkit.workspace = true
+
+[lints]
+workspace = true

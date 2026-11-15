@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT OR Apache-2.0
+"""A new screen from a template: `make new-screen NAME=thanks`.
+
+Writes SCREENS/tsx/NAME.tsx - a title, a line of text and a Back button -
+and says how to reach it from the application's logic. `make new-screen`
+then converts it, so it can be previewed and opened at once.
+
+Usage: new-screen --screens CRATE NAME
+"""
+import argparse
+import os
+import re
+import sys
+
+# Words a generated module cannot be called.
+RESERVED = {
+    "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn", "for", "if",
+    "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return", "self", "static",
+    "struct", "super", "trait", "true", "type", "unsafe", "use", "where", "while", "async", "await", "dyn",
+    "abstract", "become", "box", "do", "final", "macro", "override", "priv", "typeof", "unsized", "virtual",
+    "yield", "try", "gen", "generated", "tokens",
+}
+
+TEMPLATE = """\
+// {title}: a new screen. Change anything here; `make dev` follows each save.
+//
+// To open it from another screen, and to say what its button does, see the
+// lines `make new-screen` printed - or copy how src/lib.rs treats the others.
+import {{ Button, Column, Row, Screen, Spacer, Text }} from "nowayos:kit";
+
+const GAP = 16;
+const EDGE = 32;
+
+type {component}Props = {{
+  onBack: () => void;
+}};
+
+export function {component}Screen(props: {component}Props) {{
+  return (
+    <Screen>
+      <Column gap={{GAP}} padding={{EDGE}}>
+        <Text role="title">{title}</Text>
+        <Text>A new screen. Its file is tsx/{name}.tsx.</Text>
+        <Spacer />
+        <Row gap={{GAP}}>
+          <Button id="back" onPress={{props.onBack}}>
+            Back
+          </Button>
+        </Row>
+      </Column>
+    </Screen>
+  );
+}}
+"""
+
+
+def fail(message):
+    sys.exit(f"new-screen: {message}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="A new screen from a template.")
+    parser.add_argument("--screens", required=True, help="the crate whose tsx/ folder holds the screens")
+    parser.add_argument("name", help="the screen's name: lower-case letters, digits and hyphens")
+    args = parser.parse_args()
+    name = args.name
+    if not re.fullmatch(r"[a-z][a-z0-9]*(-[a-z0-9]+)*", name):
+        fail(f"a screen's name is lower-case letters, digits and hyphens, starting with a letter: not {name!r}")
+    module = name.replace("-", "_")
+    if module in RESERVED:
+        fail(f"{name!r} is a word Rust keeps for itself: choose another name")
+    path = os.path.join(args.screens, "tsx", name + ".tsx")
+    if os.path.exists(path):
+        fail(f"{path} is already there")
+    words = name.split("-")
+    component = "".join(word.capitalize() for word in words)
+    title = " ".join([words[0].capitalize(), *words[1:]])
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(TEMPLATE.format(name=name, component=component, title=title))
+    logic = os.path.join(args.screens, "src", "lib.rs")
+    print(f"new-screen: wrote {path}")
+    print(f"  to use it, in {logic}:")
+    print(f"      use generated::{module}::{module}_screen as {module};")
+    print(f'      self.show("{name}")?;                    // where a button should lead to it')
+    print(f'      self.showing == "{name}" && action == {module}::actions::BACK    // what its Back does')
+
+
+if __name__ == "__main__":
+    main()

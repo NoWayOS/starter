@@ -1,0 +1,20 @@
+[package]
+name = "starter-app"
+description = "The application: its screens, written in TSX and converted by Screen Compiler, and the logic that joins them (no_std)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+nowayos-bounded.workspace = true
+nowayos-display.workspace = true
+nowayos-input.workspace = true
+nowayos-ui.workspace = true
+
+[dev-dependencies]
+nowayos-render-eg.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,21 @@
+[package]
+name = "starter-input-broker"
+description = "NoWayOS's input broker PD: every input source's events checked and merged into one stream for the UI"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "starter-input-broker"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+nowayos-input-broker.workspace = true
+sel4-microkit.workspace = true
+
+[lints]
+workspace = true

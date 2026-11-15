@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    The starter in QEMU: your application's UI on QEMU's screen, driven by
+    QEMU's keyboard and pointer. Four protection domains, each able to reach
+    only what is listed here:
+
+        virtio_input   NoWayOS's driver for QEMU's keyboard and tablet, one
+                       ring each to the broker
+        input_broker   NoWayOS's input broker: merges the two rings into the
+                       UI's input ring, each event checked against the screen
+                       and each source held to its rate
+        display        NoWayOS's display PD for QEMU: shows each frame the UI
+                       presents on QEMU's ramfb
+        ui             starter-ui: your application (starter-app)
+
+    `make qemu VNC=1` shows the screen over VNC, to use by hand; `make
+    qemu-test` boots it headless, plays starter.qmp and checks starter.expect.
+
+    Capabilities. The UI holds its rings with the display and its input ring,
+    and the framebuffer (read-write in the UI, read-only in the display): no
+    device, no interrupt. The display holds QEMU's fw_cfg registers, one DMA
+    page for its requests and the scan-out buffer. The driver holds the
+    virtio registers and its two event buffers. The broker holds no device,
+    interrupt or DMA memory. The screen's size, 1920x1080, is configuration:
+    a region prefilled from screen-1920x1080.bin (NoWayOS's tools/board-system
+    writes it), read-only wherever it is mapped.
+
+    Priorities: the driver highest, so input interrupts are served first; the
+    display above the broker and the UI, so a frame is shown as soon as it is
+    presented; the broker above the UI, so input is checked however busy the
+    UI is.
+
+    Every grant here is also listed in starter.grants. NoWayOS's
+    tools/check-system compares that file with this one and with the kernel
+    objects the Microkit tool generates (make image, make qemu-test), so a
+    PD can never quietly gain a capability: widening a grant is a change to
+    both files, in plain sight.
+
+    QEMU only: a Raspberry Pi 5 has no virtio and no fw_cfg, and takes a
+    system of its own (see NoWayOS's guide to the Pi 5).
+-->
+<system>
+    <memory_region name="present_messages" size="0x1000" />
+    <memory_region name="present_control" size="0x1000" />
+    <memory_region name="display_messages" size="0x1000" />
+    <memory_region name="display_control" size="0x1000" />
+    <memory_region name="framebuffer" size="0x800000" />
+    <memory_region name="input_messages" size="0x1000" />
+    <memory_region name="input_control" size="0x1000" />
+    <memory_region name="fw_cfg_regs" size="@fw_cfg" phys_addr="@fw_cfg" />
+    <memory_region name="requests" size="0x1000" />
+    <memory_region name="scan_out" size="0x800000" page_size="0x200000" />
+    <memory_region name="virtio_regs" size="@virtio_mmio_24_31" phys_addr="@virtio_mmio_24_31" />
+    <memory_region name="tablet_events" size="0x1000" />
+    <memory_region name="keyboard_events" size="0x1000" />
+    <memory_region name="pointer_messages" size="0x1000" />
+    <memory_region name="pointer_control" size="0x1000" />
+    <memory_region name="keyboard_messages" size="0x1000" />
+    <memory_region name="keyboard_control" size="0x1000" />
+    <memory_region name="screen" prefill_path="screen-1920x1080.bin" />
+
+    <protection_domain name="virtio_input" priority="4" stack_size="0x10000">
+        <program_image path="starter-virtio-input.elf" />
+        <map mr="virtio_regs" vaddr="0x200_0000" perms="rw" cached="false"
+             setvar_vaddr="nowayos_device_0_vaddr" setvar_size="nowayos_device_0_size" />
+        <map mr="tablet_events" vaddr="0x300_0000" perms="rw" cached="false"
+             setvar_vaddr="nowayos_dma_0_vaddr" setvar_size="nowayos_dma_0_size" />
+        <map mr="keyboard_events" vaddr="0x300_1000" perms="rw" cached="false"
+             setvar_vaddr="nowayos_dma_1_vaddr" setvar_size="nowayos_dma_1_size" />
+        <setvar symbol="nowayos_dma_0_paddr" region_paddr="tablet_events" />
+        <setvar symbol="nowayos_dma_1_paddr" region_paddr="keyboard_events" />
+        <map mr="pointer_messages" vaddr="0x4000_0000" perms="rw"
+             setvar_vaddr="nowayos_rw_region_0_vaddr" setvar_size="nowayos_rw_region_0_size" />
+        <map mr="pointer_control" vaddr="0x4000_1000" perms="r"
+             setvar_vaddr="nowayos_ro_region_0_vaddr" setvar_size="nowayos_ro_region_0_size" />
+        <map mr="keyboard_messages" vaddr="0x4000_2000" perms="rw"
+             setvar_vaddr="nowayos_rw_region_1_vaddr" setvar_size="nowayos_rw_region_1_size" />
+        <map mr="keyboard_control" vaddr="0x4000_3000" perms="r"
+             setvar_vaddr="nowayos_ro_region_1_vaddr" setvar_size="nowayos_ro_region_1_size" />
+        <map mr="screen" vaddr="0x5000_0000" perms="r"
+             setvar_vaddr="nowayos_ro_region_7_vaddr" setvar_size="nowayos_ro_region_7_size" />
+        <irq irq="@virtio_mmio_24_31[6]" id="1" trigger="@virtio_mmio_24_31" />
+        <irq irq="@virtio_mmio_24_31[7]" id="2" trigger="@virtio_mmio_24_31" />
+    </protection_domain>
+
+    <protection_domain name="display" priority="3" stack_size="0x10000">
+        <program_image path="starter-display.elf" />
+        <map mr="present_control" vaddr="0x4000_0000" perms="rw"
+             setvar_vaddr="nowayos_rw_region_0_vaddr" setvar_size="nowayos_rw_region_0_size" />
+        <map mr="present_messages" vaddr="0x4000_1000" perms="r"
+             setvar_vaddr="nowayos_ro_region_0_vaddr" setvar_size="nowayos_ro_region_0_size" />
+        <map mr="display_messages" vaddr="0x4000_2000" perms="rw"
+             setvar_vaddr="nowayos_rw_region_1_vaddr" setvar_size="nowayos_rw_region_1_size" />
+        <map mr="display_control" vaddr="0x4000_3000" perms="r"
+             setvar_vaddr="nowayos_ro_region_1_vaddr" setvar_size="nowayos_ro_region_1_size" />
+        <map mr="framebuffer" vaddr="0x5000_0000" perms="r"
+             setvar_vaddr="nowayos_ro_region_2_vaddr" setvar_size="nowayos_ro_region_2_size" />
+        <map mr="screen" vaddr="0x5100_0000" perms="r"
+             setvar_vaddr="nowayos_ro_region_7_vaddr" setvar_size="nowayos_ro_region_7_size" />
+        <map mr="fw_cfg_regs" vaddr="0x200_0000" perms="rw" cached="false"
+             setvar_vaddr="nowayos_device_0_vaddr" setvar_size="nowayos_device_0_size" />
+        <map mr="requests" vaddr="0x300_0000" perms="rw" cached="false"
+             setvar_vaddr="nowayos_dma_0_vaddr" setvar_size="nowayos_dma_0_size" />
+        <map mr="scan_out" vaddr="0x2000_0000" perms="rw" cached="false"
+             setvar_vaddr="nowayos_dma_1_vaddr" setvar_size="nowayos_dma_1_size" />
+        <setvar symbol="nowayos_dma_0_paddr" region_paddr="requests" />
+        <setvar symbol="nowayos_dma_1_paddr" region_paddr="scan_out" />
+    </protection_domain>
+
+    <protection_domain name="input_broker" priority="2" stack_size="0x10000">
+        <program_image path="starter-input-broker.elf" />
+        <map mr="input_messages" vaddr="0x4000_0000" perms="rw"
+             setvar_vaddr="nowayos_rw_region_0_vaddr" setvar_size="nowayos_rw_region_0_size" />
+        <map mr="input_control" vaddr="0x4000_1000" perms="r"
+             setvar_vaddr="nowayos_ro_region_0_vaddr" setvar_size="nowayos_ro_region_0_size" />
+        <map mr="pointer_messages" vaddr="0x4100_0000" perms="r"
+             setvar_vaddr="nowayos_ro_region_1_vaddr" setvar_size="nowayos_ro_region_1_size" />
+        <map mr="pointer_control" vaddr="0x4100_1000" perms="rw"
+             setvar_vaddr="nowayos_rw_region_1_vaddr" setvar_size="nowayos_rw_region_1_size" />
+        <map mr="keyboard_messages" vaddr="0x4200_0000" perms="r"
+             setvar_vaddr="nowayos_ro_region_2_vaddr" setvar_size="nowayos_ro_region_2_size" />
+        <map mr="keyboard_control" vaddr="0x4200_1000" perms="rw"
+             setvar_vaddr="nowayos_rw_region_2_vaddr" setvar_size="nowayos_rw_region_2_size" />
+        <map mr="screen" vaddr="0x5000_0000" perms="r"
+             setvar_vaddr="nowayos_ro_region_7_vaddr" setvar_size="nowayos_ro_region_7_size" />
+    </protection_domain>
+
+    <!-- The UI PD: your application. Rings and the framebuffer; no device. -->
+    <protection_domain name="ui" priority="1" stack_size="0x600000">
+        <program_image path="starter-ui.elf" />
+        <map mr="present_messages" vaddr="0x4000_0000" perms="rw"
+             setvar_vaddr="nowayos_rw_region_0_vaddr" setvar_size="nowayos_rw_region_0_size" />
+        <map mr="present_control" vaddr="0x4000_1000" perms="r"
+             setvar_vaddr="nowayos_ro_region_0_vaddr" setvar_size="nowayos_ro_region_0_size" />
+        <map mr="display_control" vaddr="0x4000_2000" perms="rw"
+             setvar_vaddr="nowayos_rw_region_1_vaddr" setvar_size="nowayos_rw_region_1_size" />
+        <map mr="display_messages" vaddr="0x4000_3000" perms="r"
+             setvar_vaddr="nowayos_ro_region_1_vaddr" setvar_size="nowayos_ro_region_1_size" />
+        <map mr="framebuffer" vaddr="0x5000_0000" perms="rw"
+             setvar_vaddr="nowayos_rw_region_2_vaddr" setvar_size="nowayos_rw_region_2_size" />
+        <map mr="input_control" vaddr="0x4000_4000" perms="rw"
+             setvar_vaddr="nowayos_rw_region_3_vaddr" setvar_size="nowayos_rw_region_3_size" />
+        <map mr="input_messages" vaddr="0x4000_5000" perms="r"
+             setvar_vaddr="nowayos_ro_region_2_vaddr" setvar_size="nowayos_ro_region_2_size" />
+    </protection_domain>
+
+    <!-- "Records waiting", both ways. -->
+    <channel>
+        <end pd="ui" id="0" />
+        <end pd="display" id="0" />
+    </channel>
+
+    <!-- "Events waiting" from the broker; "ready for more" from the UI, which
+         the broker answers by draining its sources. -->
+    <channel>
+        <end pd="ui" id="1" />
+        <end pd="input_broker" id="0" />
+    </channel>
+
+    <!-- The driver's "events waiting"; the broker never notifies it. -->
+    <channel>
+        <end pd="virtio_input" id="0" />
+        <end pd="input_broker" id="1" notify="false" />
+    </channel>
+</system>

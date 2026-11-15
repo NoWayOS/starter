@@ -1,0 +1,21 @@
+[package]
+name = "starter-virtio-input"
+description = "In QEMU: NoWayOS's driver PD for QEMU's keyboard and pointer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "starter-virtio-input"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+nowayos-virtio-input.workspace = true
+sel4-microkit.workspace = true
+
+[lints]
+workspace = true

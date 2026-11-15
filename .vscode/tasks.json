@@ -1,0 +1,51 @@
+{
+  // Tasks for VS Code (Terminal, Run Task): the commands you use most, and
+  // Screen Compiler's diagnostics in the Problems panel.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run the application (make dev)",
+      "type": "shell",
+      "command": "make dev",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated" }
+    },
+    {
+      "label": "Preview this screen (make preview)",
+      "type": "shell",
+      "command": "make preview FILE=../${relativeFile} WATCH=1",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated" }
+    },
+    {
+      "label": "Check the screens (make screens)",
+      "type": "shell",
+      "command": "make screens",
+      "group": "build",
+      "problemMatcher": {
+        "owner": "screen-compiler",
+        "fileLocation": ["relative", "${workspaceFolder}/app/starter-app/tsx"],
+        "pattern": [
+          {
+            "regexp": "^\\s*(\\S+\\.tsx):(\\d+):(\\d+): (error)\\[([a-z-]+)\\]: (.*)$",
+            "file": 1,
+            "line": 2,
+            "column": 3,
+            "severity": 4,
+            "code": 5,
+            "message": 6
+          }
+        ]
+      }
+    },
+    {
+      "label": "Test (make test)",
+      "type": "shell",
+      "command": "make test",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

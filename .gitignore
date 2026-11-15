@@ -1,0 +1,12 @@
+# Fetched by `make setup`: NoWayOS and Screen Compiler, at the commits
+# nowayos.rev and screen-compiler.rev name.
+/nowayos/
+/screen-compiler/
+
+# Build output
+target/
+/app/build/
+
+# Editors and the OS
+.DS_Store
+__pycache__/

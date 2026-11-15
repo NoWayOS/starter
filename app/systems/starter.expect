@@ -1,0 +1,26 @@
+# Lines `make qemu-test` must see on the serial console, in this order, as
+# whole lines (NoWayOS's tools/qemu-test). The application starts, learns the
+# screen and shows its first screen; then starter.qmp types a name and
+# presses Continue, and Start again.
+STARTER: ui: starting
+STARTER: ui: the display is 1920x1080 at scale 2
+STARTER: ui: showing welcome
+STARTER: ui: pressed Continue
+STARTER: ui: showing hello
+STARTER: ui: pressed Start again
+STARTER: ui: showing welcome
+
+# Output that fails the test at once if it appears anywhere: a fault reported
+# by the Microkit monitor, a kernel error, a panic, a PD giving up, a record
+# refused or rejected, or input dropped anywhere - and the name the script
+# types, which the log must never hold.
+!MON|ERROR
+!seL4(CPU
+!panicked
+!gave up
+!refused
+!rejected
+!dropped so far
+!over its rate
+!the UI's ring is full
+!zqvj

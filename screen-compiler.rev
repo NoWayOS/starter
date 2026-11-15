@@ -1,0 +1,4 @@
+# The Screen Compiler commit that converts this application's screens.
+# `make setup` fetches it; to move to a newer one, change this line, run
+# make setup, then make screens BLESS=1 and review what changed.
+2703ed614de727ffba566821c6875fa352da7d2a

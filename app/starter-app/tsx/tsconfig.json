@@ -1,0 +1,15 @@
+// For an editor that bundles TypeScript (VS Code, with nothing to install):
+// your screens checked against the kit's declarations as you type. The
+// declarations are Screen Compiler's own, fetched by `make setup`.
+{
+  "compilerOptions": {
+    "jsx": "preserve",
+    "strict": true,
+    "noEmit": true,
+    "types": [],
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  },
+  "include": ["**/*.tsx", "../../../screen-compiler/kit/nowayos-kit.d.ts"]
+}

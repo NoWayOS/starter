@@ -1,0 +1,54 @@
+# The application's protection domains: the programs that make up its system
+# (systems/starter.system). Only `ui` is yours - it runs starter-app; the
+# other three are NoWayOS's own PDs, each run from a three-line program here
+# so that every image in the system is built in this repository.
+#
+# A workspace of its own: PDs are built for seL4 with the nightly toolchain
+# rust-toolchain.toml pins (NoWayOS's, exactly), inside the dev container.
+
+[workspace]
+resolver = "3"
+members = ["ui", "display", "input-broker", "virtio-input"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.93"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+# seL4's Microkit bindings, at the commit NoWayOS pins.
+sel4-microkit = { git = "https://github.com/seL4/rust-sel4", rev = "d441a880938209f661201704dfbee7b91c5aa905", default-features = false }
+
+nowayos-display = { path = "../../nowayos/crates/nowayos-display" }
+nowayos-render-eg = { path = "../../nowayos/crates/nowayos-render-eg" }
+nowayos-ui-loop = { path = "../../nowayos/pds/ui-loop" }
+nowayos-display-ramfb = { path = "../../nowayos/pds/display-ramfb" }
+nowayos-input-broker = { path = "../../nowayos/pds/input-broker" }
+nowayos-virtio-input = { path = "../../nowayos/pds/virtio-input" }
+
+starter-app = { path = "../starter-app" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+undocumented_unsafe_blocks = "deny"
+panic_in_result_fn = "deny"
+allow_attributes_without_reason = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+[profile.release]
+overflow-checks = true
+panic = "abort"
+
+[profile.dev]
+panic = "abort"

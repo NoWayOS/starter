@@ -1,0 +1,92 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Sets this folder up to build and run the application: `make setup`.
+#
+# 1. Checks this machine has git, make and a container engine (Podman, or
+#    Docker with ENGINE=docker).
+# 2. Fetches NoWayOS and Screen Compiler into this folder, each at the commit
+#    its .rev file names (nowayos.rev, screen-compiler.rev). They are not
+#    part of your repository: .gitignore leaves them out.
+# 3. Builds NoWayOS's dev container, if this machine has not got it: the
+#    Rust toolchains, seL4's Microkit SDK and QEMU, all pinned. A few minutes
+#    and about 5 GB, once.
+#
+# Safe to run again: it changes nothing that is already right, and never
+# touches a clone that holds work of yours.
+#
+# To fetch from somewhere else - a fork, or a clone already on this machine -
+# set NOWAYOS_URL or SCREEN_COMPILER_URL.
+
+set -eu
+cd "$(dirname "$0")"
+
+ENGINE="${ENGINE:-podman}"
+IMAGE="${IMAGE:-nowayos-dev:0.1}"
+NOWAYOS_URL="${NOWAYOS_URL:-https://github.com/NoWayOS/nowayos.git}"
+SCREEN_COMPILER_URL="${SCREEN_COMPILER_URL:-https://github.com/NoWayOS/screen-compiler.git}"
+
+say() { printf 'setup: %s\n' "$*"; }
+fail() { printf 'setup: error: %s\n' "$*" >&2; exit 1; }
+
+# 1. What this machine needs.
+command -v git >/dev/null 2>&1 || fail "git is not installed (macOS: xcode-select --install)"
+command -v make >/dev/null 2>&1 || fail "make is not installed (macOS: xcode-select --install)"
+command -v "$ENGINE" >/dev/null 2>&1 || fail "$ENGINE is not installed: get Podman from https://podman.io (or set ENGINE=docker)"
+if ! "$ENGINE" info >/dev/null 2>&1; then
+    if [ "$ENGINE" = podman ] && [ "$(uname -s)" = Darwin ]; then
+        fail "Podman is installed but its virtual machine is not running. Once:
+         podman machine init --cpus 4 --memory 8192
+       then, now and after each restart:
+         podman machine start"
+    fi
+    fail "$ENGINE is installed but not running: start it, then run make setup again"
+fi
+
+# 2. NoWayOS and Screen Compiler, at the commits the .rev files name.
+commit_in() {
+    # The first line of 40 hexadecimal digits in a .rev file.
+    grep -E -m1 '^[0-9a-f]{40}$' "$1" || fail "$1 names no commit"
+}
+
+fetch() {
+    name="$1"; url="$2"; want="$(commit_in "$name.rev")"
+    if [ ! -d "$name/.git" ]; then
+        [ ! -e "$name" ] || fail "$name is here but is not a git clone: move it away and run make setup again"
+        say "fetching $name"
+        git clone --quiet "$url" "$name"
+    fi
+    have="$(git -C "$name" rev-parse HEAD)"
+    if [ "$have" = "$want" ]; then
+        say "$name is at $(printf '%.7s' "$want"), as $name.rev says"
+        return
+    fi
+    if [ -n "$(git -C "$name" status --porcelain)" ]; then
+        say "$name holds changes of yours, so it is left at $(printf '%.7s' "$have"); $name.rev says $(printf '%.7s' "$want")"
+        return
+    fi
+    git -C "$name" cat-file -e "$want^{commit}" 2>/dev/null || git -C "$name" fetch --quiet origin
+    git -C "$name" checkout --quiet --detach "$want" \
+        || fail "$name has no commit $want: is $name.rev right, and $url the place to fetch it from?"
+    say "$name moved to $(printf '%.7s' "$want"), as $name.rev says"
+}
+
+fetch nowayos "$NOWAYOS_URL"
+fetch screen-compiler "$SCREEN_COMPILER_URL"
+
+# 3. The dev container.
+if "$ENGINE" image inspect "$IMAGE" >/dev/null 2>&1; then
+    say "the dev container ($IMAGE) is already built"
+else
+    say "building the dev container ($IMAGE): a few minutes, once"
+    make -C nowayos container ENGINE="$ENGINE" IMAGE="$IMAGE"
+fi
+
+cat <<'EOF'
+
+Ready. Next:
+
+  make dev        your application in a browser window: http://localhost:8017/
+                  edit app/starter-app/tsx/welcome.tsx and watch it follow
+  make            everything else you can do
+
+EOF

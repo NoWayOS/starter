@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT OR Apache-2.0
+"""Makes the starter yours: `make rename NAME=my-product`.
+
+Renames the starter's crates (starter-app, starter-dev), its protection
+domains' programs (starter-ui, ...), its system (systems/starter.*) and the
+prefix of what it prints (STARTER:) to NAME, in every file of this
+repository and in the files' own names. NoWayOS and Screen Compiler, which
+`make setup` fetched, are not touched.
+
+Run it once, on a clean tree, before you change much else; then `make check`.
+
+Usage: rename NAME      (from app/)
+"""
+import os
+import re
+import subprocess
+import sys
+
+OLD = "starter"
+# The endings of a system's files.
+SYSTEM_FILES = ("system", "grants", "expect", "qemu", "qmp", "baud", "configs", "screen")
+
+
+def fail(message):
+    sys.exit(f"rename: {message}")
+
+
+def tracked(root):
+    """Every file git tracks or would track under `root`, relative to it."""
+    out = subprocess.run(
+        ["git", "-C", root, "ls-files", "--cached", "--others", "--exclude-standard"],
+        capture_output=True, text=True, check=False)
+    if out.returncode != 0:
+        fail("this is not a git repository: run it in the starter you cloned")
+    return [line for line in out.stdout.splitlines() if line]
+
+
+def renamed(text, name):
+    """`text` with the starter's names changed to `name`."""
+    snake = name.replace("-", "_")
+    upper = name.upper()
+    title = " ".join(word.capitalize() for word in name.split("-"))
+    text = text.replace(f"{OLD}_", f"{snake}_")          # Rust: starter_app
+    text = text.replace(f"{OLD}-", f"{name}-")           # crates, programs: starter-ui
+    text = text.replace(f"{OLD.upper()}:", f"{upper}:")  # what it prints
+    text = re.sub(rf"\b{OLD}\.({'|'.join(SYSTEM_FILES)})\b", rf"{name}.\1", text)
+    text = text.replace(f"SYSTEM ?= {OLD}", f"SYSTEM ?= {name}")
+    text = text.replace(f'"{OLD.capitalize()}"', f'"{title}"')  # the window's title
+    return text
+
+
+def main():
+    if len(sys.argv) != 2:
+        fail("usage: make rename NAME=my-product")
+    name = sys.argv[1]
+    if not re.fullmatch(r"[a-z][a-z0-9]*(-[a-z0-9]+)*", name):
+        fail(f"a name is lower-case letters, digits and hyphens, starting with a letter: not {name!r}")
+    if name == OLD:
+        fail("that is its name already")
+    root = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=False)
+    if root.returncode != 0:
+        fail("this is not a git repository: run it in the starter you cloned")
+    root = root.stdout.strip()
+    files = tracked(root)
+    if not any(os.path.basename(path).startswith(f"{OLD}.") or f"{OLD}-app" in path for path in files):
+        fail("nothing here is still called starter: it has been renamed already")
+
+    changed = 0
+    for path in files:
+        if path.endswith("tools/rename"):
+            continue  # this file names the starter on purpose
+        full = os.path.join(root, path)
+        try:
+            with open(full, encoding="utf-8") as handle:
+                text = handle.read()
+        except (UnicodeDecodeError, OSError):
+            continue  # not text: an image, say
+        new = renamed(text, name)
+        if new != text:
+            with open(full, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(new)
+            changed += 1
+
+    # Then the files' and folders' own names, deepest first.
+    moved = 0
+    paths = set()
+    for path in files:
+        parts = path.split("/")
+        for depth in range(1, len(parts) + 1):
+            paths.add("/".join(parts[:depth]))
+    for path in sorted(paths, key=lambda p: -p.count("/")):
+        head, base = os.path.split(path)
+        new_base = renamed(base, name)
+        if new_base != base:
+            os.rename(os.path.join(root, path), os.path.join(root, head, new_base))
+            moved += 1
+
+    print(f"rename: this is now {name}: {changed} file(s) changed, {moved} renamed")
+    print("  next: make check    (it builds everything under its new name)")
+
+
+if __name__ == "__main__":
+    main()
