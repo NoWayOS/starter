@@ -1,3 +1,3 @@
 # The NoWayOS commit this application is built on. `make setup` fetches it;
 # to move to a newer NoWayOS, change this line, run make setup, then make check.
-1eedc337114da9f82c9af6f6dd407ac1d1178de0
+c8ad9a66bf4eedfbc83bf694d1210249e95c2371
