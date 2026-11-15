@@ -1,0 +1,67 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Checks that NoWayOS and Screen Compiler, as `make setup` fetched them, are
+# the commits this application names: `make pins` (and `make ci`).
+#
+# Usage: sh tools/check-pins [ROOT]      (from app/; ROOT is the folder above)
+#
+# Cargo.lock cannot pin a path dependency's code, so nowayos.rev and
+# screen-compiler.rev do: each holds one full commit hash. Each clone must be
+# a git clone of its own at that commit with no local changes (untracked
+# files count; ignored ones do not). A build against anything else is an
+# experiment, not a tested build, so make ci stops here, before it builds.
+#
+# Reads only: git takes no lock. POSIX sh.
+
+set -u
+root=${1:-..}
+failed=0
+
+check() {
+	name=$1
+	rev_file=$root/$name.rev
+	clone=$root/$name
+	if [ ! -f "$rev_file" ]; then
+		echo "pins: FAIL - no $name.rev: it names the $name commit this application is built on" >&2
+		failed=1
+		return
+	fi
+	want=$(sed -e 's/#.*//' -e 's/[[:space:]]//g' "$rev_file" | grep -v '^$')
+	case "$want" in
+		*[!0-9a-f]* | "") want= ;;
+	esac
+	if [ ${#want} -ne 40 ]; then
+		echo "pins: FAIL - $name.rev must hold exactly one full commit hash (40 lower-case hex digits) outside its comments" >&2
+		failed=1
+		return
+	fi
+	top=$(git -C "$clone" rev-parse --show-toplevel 2>/dev/null) || top=
+	here=$(cd "$clone" 2>/dev/null && pwd -P) || here=
+	if [ -z "$top" ] || [ "$(cd "$top" && pwd -P)" != "$here" ]; then
+		echo "pins: FAIL - $name is not here as a git clone of its own: run make setup" >&2
+		failed=1
+		return
+	fi
+	have=$(git -C "$clone" rev-parse --verify --quiet 'HEAD^{commit}' 2>/dev/null) || have=
+	if [ "$have" != "$want" ]; then
+		echo "pins: FAIL - $name is at ${have:-no commit git can read}; $name.rev names $want: run make setup" >&2
+		failed=1
+		return
+	fi
+	if ! changes=$(git --no-optional-locks -C "$clone" status --porcelain 2>/dev/null); then
+		echo "pins: FAIL - git cannot list $name's local changes" >&2
+		failed=1
+		return
+	fi
+	if [ -n "$changes" ]; then
+		count=$(printf '%s\n' "$changes" | grep -c .)
+		echo "pins: FAIL - $name is at the commit $name.rev names, plus local changes to $count file(s)" >&2
+		failed=1
+		return
+	fi
+	echo "pins: $name is at $want, as $name.rev names, with no local changes"
+}
+
+check nowayos
+check screen-compiler
+exit $failed

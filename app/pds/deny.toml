@@ -1,0 +1,87 @@
+# cargo-deny for the protection domains' workspace: `make pds-deny` runs it
+# (and `make ci`). The same rules as ../deny.toml.
+#
+# cargo-deny does not see the standard-library crates the protection domains
+# rebuild from source (core, alloc, compiler_builtins): they are not in
+# Cargo.lock. `make std-crates-check` holds them to NoWayOS's reviewed list.
+
+[graph]
+# Every platform: a superset of what the protection domains use.
+targets = []
+all-features = false
+no-default-features = false
+
+[advisories]
+# Every vulnerability, unsound and unmaintained advisory is an error, whichever
+# crate in the tree it concerns, and so is a yanked crate version, unless it is
+# listed in `ignore` with the reason it does not apply.
+unmaintained = "all"
+unsound = "all"
+yanked = "deny"
+ignore = []
+
+[licenses]
+# NoWayOS's list: permissive licences only. Narrow it if you wish; a licence
+# outside it needs an exception below, one crate at a time, with its reason.
+allow = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC"]
+confidence-threshold = 0.93
+# Dev-dependencies too.
+include-dev = true
+unused-allowed-license = "allow"
+exceptions = [
+    # NoWayOS's glyph atlases are drawn from its font, whose licence, the SIL
+    # Open Font License, they keep.
+    { crate = "nowayos-glyphs", allow = ["OFL-1.1"] },
+    # Unicode-3.0 covers Unicode's data tables. Build time only: a dependency
+    # of the procedural macros in seL4's Rust support, never linked into a
+    # protection domain. NoWayOS's own PD workspace has the same exception.
+    { crate = "unicode-ident", allow = ["Unicode-3.0"] },
+]
+
+[licenses.private]
+# Your crates and NoWayOS's declare their licences and are checked like any
+# other. Third-party code comes from crates.io only: the baseline check's
+# local-crate guard fails on a local crate that is not yours or NoWayOS's.
+ignore = false
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# The crates here depend on each other and on NoWayOS by path, which is not
+# a wildcard risk; a registry dependency written as "*" is refused.
+allow-wildcard-paths = true
+# NoWayOS's bans: nothing on the device's trusted path is a browser engine, a
+# WebView, a window system or a C GUI runtime, so their usual crates are
+# banned by name, where one can never arrive as a dependency of something
+# else. The baseline check fails if one is missing here.
+deny = [
+    { crate = "wry", reason = "trusted-path non-negotiable: no WebView" },
+    { crate = "webkit2gtk", reason = "trusted-path non-negotiable: no browser engine" },
+    { crate = "webkit2gtk-sys", reason = "trusted-path non-negotiable: no browser engine" },
+    { crate = "webview2-com", reason = "trusted-path non-negotiable: no WebView" },
+    { crate = "servo", reason = "trusted-path non-negotiable: no browser engine" },
+    { crate = "tao", reason = "trusted-path non-negotiable: no window system" },
+    { crate = "winit", reason = "trusted-path non-negotiable: no window system" },
+    { crate = "x11", reason = "trusted-path non-negotiable: no window system" },
+    { crate = "x11-dl", reason = "trusted-path non-negotiable: no window system" },
+    { crate = "x11rb", reason = "trusted-path non-negotiable: no window system" },
+    { crate = "wayland-client", reason = "trusted-path non-negotiable: no window system" },
+    { crate = "wayland-sys", reason = "trusted-path non-negotiable: no window system" },
+    { crate = "gtk", reason = "trusted-path non-negotiable: no C GUI runtime" },
+    { crate = "gtk4", reason = "trusted-path non-negotiable: no C GUI runtime" },
+    { crate = "gtk-sys", reason = "trusted-path non-negotiable: no C GUI runtime" },
+    { crate = "sdl2", reason = "trusted-path non-negotiable: no C GUI runtime" },
+    { crate = "sdl2-sys", reason = "trusted-path non-negotiable: no C GUI runtime" },
+    { crate = "minifb", reason = "trusted-path non-negotiable: no window system" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# seL4's Rust support is not on crates.io: its repository is the one git
+# source allowed, and every git dependency must name a commit. Which commit
+# is checked after cargo-deny: only the one NoWayOS pins (its
+# tools/check-git-pins, in make pds-deny).
+allow-git = ["https://github.com/seL4/rust-sel4"]
+required-git-spec = "rev"
