@@ -32,9 +32,9 @@ DEV_PROGRAM ?= starter-dev
 DEV_PORT ?= 8017
 
 # Screen Compiler, from the clone beside this folder, built in its own target
-# directory.
+# directory: in the dev container, one named for this clone (see below).
 SCREEN_COMPILER_DIR ?= ../screen-compiler
-_sc_target = $(if $(NOWAYOS_CONTAINER),/cache/target/screen-compiler,$(abspath $(SCREEN_COMPILER_DIR))/target)
+_sc_target = $(if $(NOWAYOS_CONTAINER),$(CARGO_TARGET_DIR)-screen-compiler,$(abspath $(SCREEN_COMPILER_DIR))/target)
 _sc = $(_sc_target)/debug/screen-compiler
 _target = $(if $(CARGO_TARGET_DIR),$(CARGO_TARGET_DIR),target)
 
