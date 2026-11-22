@@ -44,8 +44,15 @@ fi
 
 # 2. NoWayOS and Screen Compiler, at the commits the .rev files name.
 commit_in() {
-    # The first line of 40 hexadecimal digits in a .rev file.
-    grep -E -m1 '^[0-9a-f]{40}$' "$1" || fail "$1 names no commit"
+    # The commit a .rev file names, read as app/tools/check-pins reads it:
+    # comments and white space dropped, exactly one run of 40 lower-case
+    # hexadecimal digits left.
+    pin=$(sed -e 's/#.*//' -e 's/[[:space:]]//g' "$1" | grep -v '^$') || fail "$1 names no commit"
+    case "$pin" in
+        *[!0-9a-f]* | "") fail "$1 names no commit" ;;
+    esac
+    [ ${#pin} -eq 40 ] || fail "$1 names no commit"
+    printf '%s\n' "$pin"
 }
 
 fetch() {
