@@ -31,7 +31,7 @@ confidence-threshold = 0.93
 include-dev = true
 unused-allowed-license = "allow"
 exceptions = [
-    # NoWayOS's glyph atlases are drawn from its font, whose licence, the SIL
+    # NoWayOS's glyph outlines are made from its font, whose licence, the SIL
     # Open Font License, they keep.
     { crate = "nowayos-glyphs", allow = ["OFL-1.1"] },
 ]
